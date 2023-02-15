@@ -108,7 +108,7 @@ func realMain() error {
 		return err
 	}
 
-	output, err := markdown.FromMessages(client, history)
+	output, err := markdown.FromMessages(linkParts.team, linkParts.channelID, client, history)
 	if err != nil {
 		return err
 	}

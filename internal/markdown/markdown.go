@@ -81,7 +81,7 @@ func convert(client UserProvider, b *strings.Builder, s string) error {
 	return nil
 }
 
-func FromMessages(client *slackclient.SlackClient, history *slackclient.HistoryResponse) (string, error) {
+func FromMessages(team string, channelID string, client *slackclient.SlackClient, history *slackclient.HistoryResponse) (string, error) {
 	b := &strings.Builder{}
 	messages := history.Messages
 	msgTimes := make(map[string]time.Time, len(messages))
@@ -102,6 +102,8 @@ func FromMessages(client *slackclient.SlackClient, history *slackclient.HistoryR
 		return msgTimes[messages[i].Ts].Before(msgTimes[messages[j].Ts])
 	})
 
+	firstMessage := messages[0]
+
 	for _, message := range messages {
 		var username string
 		var err error
@@ -117,9 +119,11 @@ func FromMessages(client *slackclient.SlackClient, history *slackclient.HistoryR
 			return "", err
 		}
 
-		fmt.Fprintf(b, "> **%s** at %s\n>\n",
-			username,
-			msgTimes[message.Ts].Format("2006-01-02 15:04"))
+		fmt.Fprintf(b, "> %s at [%s](%s)\n>\n",
+			formatUserProfile(username),
+			msgTimes[message.Ts].Format("2006-01-02 15:04"),
+			formatLinkToMessage(team, channelID, firstMessage, message),
+		)
 
 		if message.Text != "" {
 			err = convert(client, b, message.Text)
@@ -140,6 +144,20 @@ func FromMessages(client *slackclient.SlackClient, history *slackclient.HistoryR
 	}
 
 	return b.String(), nil
+}
+
+func formatUserProfile(username string) string {
+	return fmt.Sprintf(`[<img src="https://github.com/%s.png?size=25" align="left" /> **%s**](https://github.com/%s)`, username, username, username)
+}
+
+func formatLinkToMessage(team, channelID string, firstMessage slackclient.Message, threadMessage slackclient.Message) string {
+	return fmt.Sprintf("https://%s.slack.com/archives/%s/p%s?thread_ts=%s&cid=%s",
+		team,
+		channelID,
+		firstMessage.Ts,
+		threadMessage.Ts,
+		channelID,
+	)
 }
 
 func WrapInDetails(channelName, link, s string) string {
